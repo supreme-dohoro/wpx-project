@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState, useEffect, type ReactNode } from "react";
+import { useMemo, useRef, useState, useEffect, useLayoutEffect, type ReactNode } from "react";
 import { ChevronsUpDown, ChevronUp, ChevronDown, Eye, Link2, MoreHorizontal } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import thumb from "@/assets/thumb.jpg";
 import avatar from "@/assets/avatar.jpg";
 
@@ -65,6 +66,33 @@ const statusStyle: Record<Row["status"], string> = {
 
 const fmtDate = (d: string) =>
   new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+/** Only shows a tooltip when the content is actually truncated. */
+function TruncateTip({ text, className, children }: { text: string; className?: string; children?: ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [clipped, setClipped] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setClipped(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const span = (
+    <span ref={ref} className={className} title={clipped ? undefined : text}>
+      {children ?? text}
+    </span>
+  );
+  if (!clipped) return span;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{span}</TooltipTrigger>
+      <TooltipContent className="max-w-xs whitespace-normal">{text}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function Checkbox({ checked, indeterminate, onChange, label }: { checked: boolean; indeterminate?: boolean; onChange: () => void; label: string }) {
   const ref = useRef<HTMLInputElement>(null);
