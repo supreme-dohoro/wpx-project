@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect, useLayoutEffect, type ReactNode } from "react";
-import { ChevronsUpDown, ChevronUp, ChevronDown, Eye, Link2, MoreHorizontal } from "lucide-react";
+import { ChevronsUpDown, ChevronUp, ChevronDown, Eye, Link2, MoreHorizontal, MapPin, Phone, Mail, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import thumb from "@/assets/thumb.jpg";
 import avatar from "@/assets/avatar.jpg";
 
@@ -66,6 +67,79 @@ const statusStyle: Record<Row["status"], string> = {
 
 const fmtDate = (d: string) =>
   new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+const locations = [
+  "570 Annadale Lane, Hollywood, FL 33024",
+  "1123 Maplewood Drive, Coral Springs, FL 33065",
+  "4567 Pinecrest Avenue, Boca Raton, FL 33431",
+  "7890 Oakridge Blvd, Fort Lauderdale, FL 33308",
+  "2345 Cedar Lane, Miami, FL 33133",
+];
+
+function Mark() {
+  return <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-accent text-lg font-semibold text-primary">◉</span>;
+}
+
+function ProjectPreview({ row }: { row: Row }) {
+  const location = locations[Number(row.id) - 1] ?? row.project;
+  return (
+    <div className="w-[360px] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-xl">
+      <div className="p-4">
+        <div className="flex items-center gap-3">
+          <Mark />
+          <p className="line-clamp-2 text-sm font-medium leading-5">{row.customer} — {row.project}</p>
+        </div>
+        <p className="mt-5 line-clamp-5 text-base font-semibold leading-6">{row.project} — Protection Works &amp; Ground Floor — Level 4</p>
+        <div className="mt-5 flex items-start gap-3 text-muted-foreground">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="line-clamp-2 text-sm leading-5">{location}</p>
+        </div>
+      </div>
+      <dl className="grid grid-cols-[92px_1fr] gap-x-4 gap-y-4 border-t px-4 py-4 text-sm">
+        <dt className="text-muted-foreground">Start Date</dt><dd>15 May 2024</dd>
+        <dt className="text-muted-foreground">Proj. No.</dt><dd className="truncate">PRJ-{row.id.padStart(4, "0")} / {row.project.split(" ")[0].toUpperCase()}</dd>
+        <dt className="text-muted-foreground">Ref. No.</dt><dd className="line-clamp-2">UNITS {939498 + Number(row.id)} JSJ</dd>
+      </dl>
+    </div>
+  );
+}
+
+function CustomerPreview({ row }: { row: Row }) {
+  const location = locations[Number(row.id) - 1] ?? row.customer;
+  return (
+    <div className="w-[360px] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-xl">
+      <div className="p-4">
+        <div className="flex items-center gap-3"><Mark /><p className="text-base font-semibold">{row.customer}</p></div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="rounded border bg-chip px-2.5 py-1 text-sm text-muted-foreground">{row.initials}</span>
+          <span className="rounded border bg-chip px-2.5 py-1 text-sm text-muted-foreground">Management</span>
+        </div>
+      </div>
+      <div className="space-y-3 border-t px-4 py-4 text-sm">
+        <div className="flex items-center gap-3"><span className="w-6 text-[10px] font-semibold text-muted-foreground">ABN</span><span>12 345 678</span></div>
+        <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /><span>0412 345 678</span></div>
+        <div className="flex items-center gap-3"><Mail className="h-4 w-4 text-muted-foreground" /><span>{row.initials.toLowerCase()}@example.com</span></div>
+        <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span className="line-clamp-2">{location}</span></div>
+      </div>
+      <dl className="grid grid-cols-[1fr_auto] gap-y-3 border-t px-4 py-4 text-sm">
+        <dt className="text-muted-foreground">No. of Projects</dt><dd>{Number(row.id) + 3}</dd>
+        <dt className="text-muted-foreground">Admins Assigned</dt><dd>{Number(row.id) % 3}</dd>
+      </dl>
+      <div className="flex items-center gap-3 border-t px-4 py-3 text-sm"><RefreshCw className="h-4 w-4 text-tag-green" /><span>ALD Expert Demo</span></div>
+    </div>
+  );
+}
+
+function DetailHover({ row, type, children }: { row: Row; type: "project" | "customer"; children: ReactNode }) {
+  return (
+    <HoverCard openDelay={250} closeDelay={120}>
+      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+      <HoverCardContent side="bottom" align="start" sideOffset={8} className="w-auto border-0 bg-transparent p-0 shadow-none">
+        {type === "project" ? <ProjectPreview row={row} /> : <CustomerPreview row={row} />}
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
 
 /** Only shows a tooltip when the content is actually truncated. */
 function TruncateTip({ text, className, children }: { text: string; className?: string; children?: ReactNode }) {
@@ -208,13 +282,13 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
       case "checkbox":
         return <Checkbox label={`Select ${r.project}`} checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />;
       case "text":
-        return <TruncateTip text={r.project} className={`block pl-1 text-[15px] ${clamp}`} />;
+        return <DetailHover row={r} type="project"><span tabIndex={0} className={`block cursor-default pl-1 text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-ring ${clamp}`}>{r.project}</span></DetailHover>;
       case "customer":
         return (
-          <div className="flex min-w-0 items-center gap-3">
+          <DetailHover row={r} type="customer"><div tabIndex={0} className="flex min-w-0 cursor-default items-center gap-3 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-avatar-bg text-[15px] text-primary">{r.initials}</span>
-            <TruncateTip text={r.customer} className={`min-w-0 text-[15px] ${clamp}`} />
-          </div>
+            <span className={`min-w-0 text-[15px] ${clamp}`}>{r.customer}</span>
+          </div></DetailHover>
         );
       case "number": {
         const pct = (r.used / r.budget) * 100;
