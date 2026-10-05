@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Search, Plus, ChevronDown, ChevronLeft, ChevronRight, Maximize2, Minimize2, Keyboard } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
-import { ProjectTable } from "@/components/ProjectTable";
+import { ProjectTable, type ProjectView } from "@/components/ProjectTable";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,7 +27,7 @@ function Select({ label }: { label: string }) {
 }
 
 function Index() {
-  const [tab, setTab] = useState("Ongoing");
+  const [tab, setTab] = useState<ProjectView>("Ongoing");
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(1);
   return (
@@ -47,7 +47,7 @@ function Index() {
 
         <div className="mt-4 mb-7 flex flex-wrap items-center justify-between gap-3">
           <div className="flex rounded-md border p-[3px]">
-            {["Ongoing", "Completed", "Archive"].map((t) => (
+            {(["Ongoing", "Completed", "Archived"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)} className={`rounded px-[17px] py-2 text-[15px] transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{t}</button>
             ))}
           </div>
@@ -65,7 +65,7 @@ function Index() {
           </div>
         </div>
 
-        <ProjectTable expanded={expanded} />
+        <ProjectTable expanded={expanded} view={tab} />
 
         <div className="mt-12 flex flex-wrap items-center justify-between gap-4 px-3 text-[13px] text-muted-foreground">
           <span>Showing 1 -10 of 500</span>
