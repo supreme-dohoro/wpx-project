@@ -71,31 +71,33 @@ const fmtDate = (d: string) =>
 function TruncateTip({ text, className, children }: { text: string; className?: string; children?: ReactNode }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [clipped, setClipped] = useState(false);
+  const checkClipped = () => {
+    const el = ref.current;
+    if (el) setClipped(el.scrollWidth > el.clientWidth + 1);
+  };
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const check = () => setClipped(el.scrollWidth > el.clientWidth + 1);
-    const frame = requestAnimationFrame(check);
-    void document.fonts?.ready.then(check);
-    const ro = new ResizeObserver(check);
+    const frame = requestAnimationFrame(checkClipped);
+    void document.fonts?.ready.then(checkClipped);
+    const ro = new ResizeObserver(checkClipped);
     ro.observe(el);
-    window.addEventListener("resize", check);
+    window.addEventListener("resize", checkClipped);
     return () => {
       cancelAnimationFrame(frame);
       ro.disconnect();
-      window.removeEventListener("resize", check);
+      window.removeEventListener("resize", checkClipped);
     };
   }, [text]);
   const span = (
-    <span ref={ref} className={className} title={clipped ? undefined : text}>
+    <span ref={ref} className={className} onPointerEnter={checkClipped}>
       {children ?? text}
     </span>
   );
-  if (!clipped) return span;
   return (
     <Tooltip>
       <TooltipTrigger asChild>{span}</TooltipTrigger>
-      <TooltipContent className="max-w-xs whitespace-normal">{text}</TooltipContent>
+      {clipped && <TooltipContent className="max-w-xs whitespace-normal">{text}</TooltipContent>}
     </Tooltip>
   );
 }
