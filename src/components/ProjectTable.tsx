@@ -11,7 +11,7 @@ export type ProjectView = "Ongoing" | "Completed" | "Archived";
 export type Row = {
   id: string;
   lifecycle: ProjectView;
-  endDate?: string;
+  endDate?: string | undefined;
   project: string;
   customer: string;
   initials: string;
@@ -118,13 +118,13 @@ type Col = { key: string; label: string; type: ColType; width: number; min: numb
 
 const initialCols: Col[] = [
   { key: "select", label: "", type: "checkbox", width: 48, min: 40 },
-  { key: "project", label: "Project", type: "text", width: 228, min: 100, sortable: true, sortValue: (r) => r.project },
-  { key: "customer", label: "Customer", type: "customer", width: 224, min: 120, sortable: true, sortValue: (r) => r.customer },
-  { key: "budget", label: "Budget Hrs", type: "number", width: 224, min: 140, sortable: true, sortValue: (r) => r.used / r.budget },
+  { key: "project", label: "Project", type: "text", width: 300, min: 240, sortable: true, sortValue: (r) => r.project },
+  { key: "customer", label: "Customer", type: "customer", width: 280, min: 240, sortable: true, sortValue: (r) => r.customer },
+  { key: "budget", label: "Budget Hrs", type: "number", width: 280, min: 240, sortable: true, sortValue: (r) => r.used / r.budget },
   { key: "recycle", label: "Recycling", type: "recycle", width: 224, min: 120, sortable: true, sortValue: (r) => r.recycle },
-  { key: "templates", label: "Templates", type: "badges", width: 224, min: 120 },
-  { key: "tags", label: "Project Tags", type: "tags", width: 224, min: 100 },
-  { key: "team", label: "Team", type: "avatars", width: 140, min: 80 },
+  { key: "templates", label: "Templates", type: "badges", width: 224, min: 190 },
+  { key: "tags", label: "Project Tags", type: "tags", width: 224, min: 190 },
+  { key: "team", label: "Team", type: "avatars", width: 160, min: 140 },
   { key: "link", label: "Link", type: "link", width: 180, min: 100 },
   { key: "images", label: "Images", type: "image", width: 100, min: 72 },
   { key: "file", label: "File", type: "file", width: 200, min: 120 },
@@ -272,19 +272,71 @@ function Checkbox({ checked, indeterminate, onChange, label }: { checked: boolea
   );
 }
 
-function Chips({ items, expanded, max, className, chipClass }: { items: string[]; expanded: boolean; max: number; className?: string; chipClass: (s: string) => string }) {
+function Chips({ items, expanded, className, chipClass }: { items: string[]; expanded: boolean; className?: string; chipClass: (s: string) => string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measurementRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [chipWidths, setChipWidths] = useState<number[]>([]);
+
+  useLayoutEffect(() => {
+    setChipWidths(measurementRefs.current.map((item) => item?.getBoundingClientRect().width ?? 50));
+  }, [items]);
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setContainerWidth(element.clientWidth));
+    observer.observe(element);
+    setContainerWidth(element.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+
   if (!items.length) return <span className="ml-3 inline-block h-px w-4 bg-subtle" />;
-  const shown = expanded ? items : items.slice(0, max);
+
+  const gap = 6;
+  const minChipWidth = 50;
+  const overflowWidth = 40;
+  let shownCount = items.length;
+  if (!expanded && chipWidths.length === items.length && containerWidth > 0) {
+    const fitsAllAtMinimum = items.length * minChipWidth + (items.length - 1) * gap <= containerWidth;
+    const fitsAllAtNaturalWidth = chipWidths.reduce((total, width) => total + width, 0) + (items.length - 1) * gap <= containerWidth;
+    if (!fitsAllAtMinimum && !fitsAllAtNaturalWidth) {
+      shownCount = 0;
+      for (let count = items.length - 1; count > 0; count -= 1) {
+        const required = count * minChipWidth + (count - 1) * gap + gap + overflowWidth;
+        if (required <= containerWidth) {
+          shownCount = count;
+          break;
+        }
+      }
+      shownCount = Math.max(shownCount, Math.min(2, items.length));
+    }
+  } else if (!expanded) {
+    shownCount = Math.min(2, items.length);
+  }
+
+  const shown = expanded ? items : items.slice(0, shownCount);
   const hidden = items.slice(shown.length);
   return (
-    <div className={`flex min-w-0 gap-1.5 ${expanded ? "flex-wrap" : "flex-nowrap"} ${className ?? ""}`}>
+    <div ref={containerRef} className={`flex w-full min-w-0 gap-1.5 ${expanded ? "flex-wrap" : "flex-nowrap"} ${className ?? ""}`}>
+      <span className="pointer-events-none absolute -z-10 invisible flex">
+        {items.map((item, index) => (
+          <span
+            key={`${item}-${index}`}
+            ref={(element) => { measurementRefs.current[index] = element; }}
+            className={`w-max min-w-[50px] max-w-[120px] shrink-0 truncate whitespace-nowrap rounded px-2 py-[3px] text-[13px] ${chipClass(item)}`}
+          >
+            {item}
+          </span>
+        ))}
+      </span>
       {shown.map((t, i) => (
-        <TruncateTip key={i} text={t} className={`min-w-0 ${expanded ? "" : "max-w-[96px]"} shrink truncate rounded px-2 py-[3px] text-[13px] ${chipClass(t)}`} />
+        <TruncateTip key={i} text={t} className={`w-max min-w-[50px] max-w-[120px] shrink truncate whitespace-nowrap rounded px-2 py-[3px] text-[13px] ${chipClass(t)}`} />
       ))}
       {hidden.length > 0 && (
         <Tooltip delayDuration={150}>
           <TooltipTrigger asChild>
-            <span tabIndex={0} className="shrink-0 cursor-default rounded border bg-chip px-1.5 py-[3px] text-[13px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <span tabIndex={0} className="min-w-[34px] shrink-0 cursor-default rounded border bg-chip px-1.5 py-[3px] text-center text-[13px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
               +{hidden.length}
             </span>
           </TooltipTrigger>
@@ -459,9 +511,9 @@ export function ProjectTable({ expanded, view }: { expanded: boolean; view: Proj
           </div>
         );
       case "badges":
-        return <Chips items={r.templates} expanded={expanded} max={2} className={expanded ? "flex-col items-start" : ""} chipClass={() => "border bg-chip text-foreground"} />;
+        return <Chips items={r.templates} expanded={expanded} chipClass={() => "border bg-chip text-foreground"} />;
       case "tags":
-        return <Chips items={r.tags} expanded={expanded} max={2} chipClass={tagStyle} />;
+        return <Chips items={r.tags} expanded={expanded} chipClass={tagStyle} />;
       case "avatars": {
         const shown = r.team.slice(0, 3);
         const rest = r.team.length - 3;
