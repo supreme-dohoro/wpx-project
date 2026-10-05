@@ -97,7 +97,7 @@ function ProjectPreview({ row }: { row: Row }) {
       </div>
       <dl className="grid grid-cols-[92px_1fr] gap-x-4 gap-y-4 border-t px-4 py-4 text-sm">
         <dt className="text-muted-foreground">Start Date</dt><dd>15 May 2024</dd>
-        <dt className="text-muted-foreground">Proj. No.</dt><dd className="truncate">PRJ-{row.id.padStart(4, "0")} / {row.project.split(" ")[0].toUpperCase()}</dd>
+        <dt className="text-muted-foreground">Proj. No.</dt><dd className="truncate">PRJ-{row.id.padStart(4, "0")} / {(row.project.split(" ")[0] ?? "PROJECT").toUpperCase()}</dd>
         <dt className="text-muted-foreground">Ref. No.</dt><dd className="line-clamp-2">UNITS {939498 + Number(row.id)} JSJ</dd>
       </dl>
     </div>
