@@ -71,25 +71,33 @@ const fmtDate = (d: string) =>
 function TruncateTip({ text, className, children }: { text: string; className?: string; children?: ReactNode }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [clipped, setClipped] = useState(false);
+  const checkClipped = () => {
+    const el = ref.current;
+    if (el) setClipped(el.scrollWidth > el.clientWidth + 1);
+  };
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const check = () => setClipped(el.scrollWidth > el.clientWidth + 1);
-    check();
-    const ro = new ResizeObserver(check);
+    const frame = requestAnimationFrame(checkClipped);
+    void document.fonts?.ready.then(checkClipped);
+    const ro = new ResizeObserver(checkClipped);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+    window.addEventListener("resize", checkClipped);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+      window.removeEventListener("resize", checkClipped);
+    };
+  }, [text]);
   const span = (
-    <span ref={ref} className={className} title={clipped ? undefined : text}>
+    <span ref={ref} className={className} onPointerEnter={checkClipped}>
       {children ?? text}
     </span>
   );
-  if (!clipped) return span;
   return (
     <Tooltip>
       <TooltipTrigger asChild>{span}</TooltipTrigger>
-      <TooltipContent className="max-w-xs whitespace-normal">{text}</TooltipContent>
+      {clipped && <TooltipContent className="max-w-xs whitespace-normal">{text}</TooltipContent>}
     </Tooltip>
   );
 }
@@ -112,13 +120,30 @@ function Checkbox({ checked, indeterminate, onChange, label }: { checked: boolea
 function Chips({ items, expanded, max, className, chipClass }: { items: string[]; expanded: boolean; max: number; className?: string; chipClass: (s: string) => string }) {
   if (!items.length) return <span className="ml-3 inline-block h-px w-4 bg-subtle" />;
   const shown = expanded ? items : items.slice(0, max);
-  const rest = items.length - shown.length;
+  const hidden = items.slice(shown.length);
   return (
     <div className={`flex min-w-0 gap-1.5 ${expanded ? "flex-wrap" : "flex-nowrap"} ${className ?? ""}`}>
       {shown.map((t, i) => (
-        <span key={i} title={t} className={`min-w-0 ${expanded ? "" : "max-w-[96px]"} shrink truncate rounded px-2 py-[3px] text-[13px] ${chipClass(t)}`}>{t}</span>
+        <TruncateTip key={i} text={t} className={`min-w-0 ${expanded ? "" : "max-w-[96px]"} shrink truncate rounded px-2 py-[3px] text-[13px] ${chipClass(t)}`} />
       ))}
-      {rest > 0 && <span className="shrink-0 rounded border bg-chip px-1.5 py-[3px] text-[13px] text-muted-foreground">+{rest}</span>}
+      {hidden.length > 0 && (
+        <Tooltip delayDuration={150}>
+          <TooltipTrigger asChild>
+            <span tabIndex={0} className="shrink-0 cursor-default rounded border bg-chip px-1.5 py-[3px] text-[13px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              +{hidden.length}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="start" className="min-w-44 p-1.5">
+            <div className="flex flex-col" role="list" aria-label="Hidden items">
+              {hidden.map((item, index) => (
+                <span key={`${item}-${index}`} role="listitem" className="rounded px-2 py-1.5 text-sm text-popover-foreground">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   );
 }
@@ -134,7 +159,9 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
     const c = cols.find((c) => c.key === sort.key);
     if (!c?.sortValue) return rows;
     return [...rows].sort((a, b) => {
-      const va = c.sortValue!(a), vb = c.sortValue!(b);
+      const sortValue = c.sortValue;
+      if (!sortValue) return 0;
+      const va = sortValue(a), vb = sortValue(b);
       const r = va < vb ? -1 : va > vb ? 1 : 0;
       return sort.dir === "asc" ? r : -r;
     });
@@ -148,7 +175,8 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
-    const col = cols.find((c) => c.key === key)!;
+    const col = cols.find((c) => c.key === key);
+    if (!col) return;
     const startW = col.width;
     setResizing(key);
     document.body.style.cursor = "col-resize";
@@ -180,12 +208,12 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
       case "checkbox":
         return <Checkbox label={`Select ${r.project}`} checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />;
       case "text":
-        return <span className={`block pl-1 text-[15px] ${clamp}`} title={r.project}>{r.project}</span>;
+        return <TruncateTip text={r.project} className={`block pl-1 text-[15px] ${clamp}`} />;
       case "customer":
         return (
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-avatar-bg text-[15px] text-primary">{r.initials}</span>
-            <span className={`min-w-0 text-[15px] ${clamp}`} title={r.customer}>{r.customer}</span>
+            <TruncateTip text={r.customer} className={`min-w-0 text-[15px] ${clamp}`} />
           </div>
         );
       case "number": {
@@ -241,7 +269,7 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
         return (
           <a href="#" onClick={(e) => e.preventDefault()} className="flex min-w-0 items-center gap-2 text-[15px] text-primary hover:opacity-80 focus-visible:outline-2 focus-visible:outline-primary rounded">
             <Link2 className="h-4 w-4 shrink-0" />
-            <span className="truncate underline underline-offset-2">{r.link}</span>
+            <TruncateTip text={r.link} className="truncate underline underline-offset-2" />
           </a>
         );
       case "image":
@@ -257,11 +285,11 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
             <span className="relative flex h-8 w-7 shrink-0 items-end justify-center rounded-sm bg-secondary">
               <span className="mb-1 rounded-[2px] bg-destructive px-1 text-[7px] font-semibold text-destructive-foreground">pdf</span>
             </span>
-            <span className="truncate text-[14px] text-tag-blue" title={r.file}>{r.file}</span>
+            <TruncateTip text={r.file} className="truncate text-[14px] text-tag-blue" />
           </div>
         );
       case "notes":
-        return <span className={`block text-[14px] text-muted-foreground ${expanded ? "whitespace-normal" : "truncate"}`} title={r.notes}>{r.notes}</span>;
+        return <TruncateTip text={r.notes} className={`block text-[14px] text-muted-foreground ${expanded ? "whitespace-normal" : "truncate"}`} />;
       case "status":
         return <span className={`inline-block max-w-full truncate rounded px-2 py-[3px] text-[13px] ${statusStyle[r.status]}`}>{r.status}</span>;
       case "date":
@@ -279,6 +307,7 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
   const grid = cols.map((c) => `${c.width}px`).join(" ");
 
   return (
+    <TooltipProvider delayDuration={250}>
     <div className="overflow-x-auto rounded-md border">
       <div role="table" style={{ width: total, minWidth: "100%" }}>
         <div role="row" className="grid border-b bg-background" style={{ gridTemplateColumns: grid }}>
@@ -291,7 +320,7 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
                 ) : c.sortable ? (
                   <button onClick={() => toggleSort(c.key)} className="flex w-full min-w-0 items-center justify-between gap-2 rounded text-left hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
                     <span className="truncate">{c.label}</span>
-                    {active ? (sort!.dir === "asc" ? <ChevronUp className="h-4 w-4 shrink-0 text-primary" /> : <ChevronDown className="h-4 w-4 shrink-0 text-primary" />) : <ChevronsUpDown className="h-4 w-4 shrink-0" />}
+                    {active ? (sort?.dir === "asc" ? <ChevronUp className="h-4 w-4 shrink-0 text-primary" /> : <ChevronDown className="h-4 w-4 shrink-0 text-primary" />) : <ChevronsUpDown className="h-4 w-4 shrink-0" />}
                   </button>
                 ) : (
                   <span className="truncate">{c.label}</span>
@@ -317,5 +346,6 @@ export function ProjectTable({ expanded }: { expanded: boolean }) {
         })}
       </div>
     </div>
+    </TooltipProvider>
   );
 }
