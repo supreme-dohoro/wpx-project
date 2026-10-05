@@ -75,11 +75,17 @@ function TruncateTip({ text, className, children }: { text: string; className?: 
     const el = ref.current;
     if (!el) return;
     const check = () => setClipped(el.scrollWidth > el.clientWidth + 1);
-    check();
+    const frame = requestAnimationFrame(check);
+    void document.fonts?.ready.then(check);
     const ro = new ResizeObserver(check);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+    window.addEventListener("resize", check);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+      window.removeEventListener("resize", check);
+    };
+  }, [text]);
   const span = (
     <span ref={ref} className={className} title={clipped ? undefined : text}>
       {children ?? text}
