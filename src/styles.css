@@ -100,6 +100,12 @@
   }
 }
 
+[data-guide-active="true"] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 @utility col-resizer {
   position: absolute;
   top: 0;

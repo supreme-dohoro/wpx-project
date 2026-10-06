@@ -620,7 +620,14 @@ export function ProjectTable({ expanded, view }: { expanded: boolean; view: Proj
                   <span className="truncate">{c.label}</span>
                 )}
                 {c.type !== "checkbox" && (
-                  <span role="separator" aria-label={`Resize ${c.label}`} data-active={resizing === c.key} className="col-resizer" onPointerDown={(e) => startResize(e, c.key)} />
+                  <span
+                    role="separator"
+                    aria-label={`Resize ${c.label}`}
+                    data-walkthrough-target={c.key === "project" ? "column-resize" : undefined}
+                    data-active={resizing === c.key}
+                    className="col-resizer"
+                    onPointerDown={(e) => startResize(e, c.key)}
+                  />
                 )}
               </div>
             );

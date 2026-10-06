@@ -1,8 +1,86 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Plus, ChevronDown, ChevronLeft, ChevronRight, Maximize2, Minimize2, Keyboard } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { ProjectTable, type ProjectView } from "@/components/ProjectTable";
+
+const walkthroughStorageKey = "project-table-walkthrough-seen";
+
+function TableWalkthrough({ step, onNext, onDismiss }: { step: number; onNext: () => void; onDismiss: () => void }) {
+  const [position, setPosition] = useState<{ left: number; top: number; width: number } | null>(null);
+  const target = step === 0 ? '[data-walkthrough-target="row-toggle"]' : '[data-walkthrough-target="column-resize"]';
+
+  useEffect(() => {
+    const updatePosition = () => {
+      const element = document.querySelector<HTMLElement>(target);
+      if (!element) return;
+
+      element.dataset.guideActive = "true";
+      const rect = element.getBoundingClientRect();
+      const width = Math.min(320, window.innerWidth - 24);
+      const left = Math.min(Math.max(12, rect.left + rect.width / 2 - width / 2), Math.max(12, window.innerWidth - width - 12));
+      const below = rect.bottom + 12;
+      const top = below + 170 <= window.innerHeight ? below : Math.max(12, rect.top - 182);
+      setPosition({ left, top, width });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      document.querySelector<HTMLElement>(target)?.removeAttribute("data-guide-active");
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [target]);
+
+  if (!position) return null;
+
+  const isLastStep = step === 1;
+  return (
+    <section
+      aria-labelledby="table-walkthrough-title"
+      aria-describedby="table-walkthrough-description"
+      className="fixed z-[60] rounded-lg border bg-background p-4 shadow-lg"
+      style={position}
+      role="dialog"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium text-primary">Quick guide · {step + 1} of 2</p>
+          <h2 id="table-walkthrough-title" className="mt-1 font-semibold">
+            {step === 0 ? "Expand or collapse rows" : "Resize columns"}
+          </h2>
+        </div>
+        <button
+          type="button"
+          aria-label="Dismiss walkthrough"
+          onClick={onDismiss}
+          className="rounded px-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          ×
+        </button>
+      </div>
+      <p id="table-walkthrough-description" className="mt-2 text-sm text-muted-foreground">
+        {step === 0
+          ? "Use this control to show more or less detail in every project row."
+          : "Drag the divider at the edge of a column heading to adjust its width."}
+      </p>
+      <div className="mt-4 flex items-center justify-between">
+        <button type="button" onClick={onDismiss} className="text-sm text-muted-foreground hover:text-foreground">
+          Skip
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {isLastStep ? "Got it" : "Next"}
+        </button>
+      </div>
+    </section>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,6 +108,28 @@ function Index() {
   const [tab, setTab] = useState<ProjectView>("Ongoing");
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(1);
+  const [walkthroughStep, setWalkthroughStep] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(walkthroughStorageKey) !== "true") {
+        setWalkthroughStep(0);
+      }
+    } catch (error) {
+      console.error("Could not read the project table walkthrough preference.", error);
+      setWalkthroughStep(0);
+    }
+  }, []);
+
+  const dismissWalkthrough = () => {
+    setWalkthroughStep(null);
+    try {
+      window.localStorage.setItem(walkthroughStorageKey, "true");
+    } catch (error) {
+      console.error("Could not save the project table walkthrough preference.", error);
+    }
+  };
+
   return (
     <div className="flex min-h-screen font-sans">
       <Sidebar />
@@ -56,6 +156,7 @@ function Index() {
             <Select label="Project Tags" />
             <button
               aria-label={expanded ? "Collapse rows" : "Expand rows"}
+              data-walkthrough-target="row-toggle"
               aria-pressed={expanded}
               onClick={() => setExpanded((e) => !e)}
               className={`ml-3 flex h-9 w-9 items-center justify-center rounded border transition-colors hover:bg-secondary ${expanded ? "bg-accent text-primary" : ""}`}
@@ -66,6 +167,13 @@ function Index() {
         </div>
 
         <ProjectTable expanded={expanded} view={tab} />
+        {walkthroughStep !== null && (
+          <TableWalkthrough
+            step={walkthroughStep}
+            onNext={walkthroughStep === 0 ? () => setWalkthroughStep(1) : dismissWalkthrough}
+            onDismiss={dismissWalkthrough}
+          />
+        )}
 
         <div className="mt-12 flex flex-wrap items-center justify-between gap-4 px-3 text-[13px] text-muted-foreground">
           <span>Showing 1 -10 of 500</span>
