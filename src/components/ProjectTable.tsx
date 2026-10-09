@@ -13,6 +13,9 @@ import {
   Columns3,
   GripVertical,
   Pin,
+  Copy,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -549,34 +552,99 @@ function Mark() {
   );
 }
 
+function CopyableItem({ value, children }: { value: string; children: ReactNode }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+
+  const copyValue = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 1500);
+    } catch (error) {
+      console.error("Could not copy floating card content.", error);
+      setCopyState("failed");
+      window.setTimeout(() => setCopyState("idle"), 2500);
+    }
+  };
+
+  const label = copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy";
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${label} ${value}`}
+      title="Click to copy"
+      onClick={() => void copyValue()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          void copyValue();
+        }
+      }}
+      className="group/copy relative min-w-0 cursor-copy rounded px-1 pr-7 transition-colors hover:bg-secondary/80 focus-visible:outline-2 focus-visible:outline-primary"
+    >
+      {children}
+      <span
+        aria-hidden="true"
+        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity group-hover/copy:opacity-100 group-focus-visible/copy:opacity-100"
+      >
+        {copyState === "copied" ? (
+          <Check className="h-3.5 w-3.5 text-primary" />
+        ) : copyState === "failed" ? (
+          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </span>
+    </div>
+  );
+}
+
 function ProjectPreview({ row }: { row: Row }) {
   const location = locations[Number(row.id) - 1] ?? row.project;
+  const projectNumber = `PRJ-${row.id.padStart(4, "0")} / ${(row.project.split(" ")[0] ?? "PROJECT").toUpperCase()}`;
+  const referenceNumber = `UNITS ${939498 + Number(row.id)} JSJ`;
   return (
     <div className="w-[360px] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-xl">
       <div className="p-4">
         <div className="flex items-center gap-3">
           <Mark />
-          <p className="line-clamp-2 text-sm font-medium leading-5">
-            {row.customer} — {row.project}
-          </p>
+          <CopyableItem value={`${row.customer} — ${row.project}`}>
+            <p className="line-clamp-2 text-sm font-medium leading-5">
+              {row.customer} — {row.project}
+            </p>
+          </CopyableItem>
         </div>
-        <p className="mt-5 line-clamp-5 text-base font-semibold leading-6">
-          {row.project} — Protection Works &amp; Ground Floor — Level 4
-        </p>
+        <CopyableItem value={`${row.project} — Protection Works & Ground Floor — Level 4`}>
+          <p className="mt-5 line-clamp-5 text-base font-semibold leading-6">
+            {row.project} — Protection Works &amp; Ground Floor — Level 4
+          </p>
+        </CopyableItem>
         <div className="mt-5 flex items-start gap-3 text-muted-foreground">
           <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-          <p className="line-clamp-2 text-sm leading-5">{location}</p>
+          <CopyableItem value={location}>
+            <p className="line-clamp-2 text-sm leading-5">{location}</p>
+          </CopyableItem>
         </div>
       </div>
       <dl className="grid grid-cols-[92px_1fr] gap-x-4 gap-y-4 border-t px-4 py-4 text-sm">
         <dt className="text-muted-foreground">Start Date</dt>
-        <dd>15 May 2024</dd>
+        <dd>
+          <CopyableItem value="15 May 2024">15 May 2024</CopyableItem>
+        </dd>
         <dt className="text-muted-foreground">Proj. No.</dt>
-        <dd className="truncate">
-          PRJ-{row.id.padStart(4, "0")} / {(row.project.split(" ")[0] ?? "PROJECT").toUpperCase()}
+        <dd>
+          <CopyableItem value={projectNumber}>
+            <span className="block truncate">{projectNumber}</span>
+          </CopyableItem>
         </dd>
         <dt className="text-muted-foreground">Ref. No.</dt>
-        <dd className="line-clamp-2">UNITS {939498 + Number(row.id)} JSJ</dd>
+        <dd>
+          <CopyableItem value={referenceNumber}>
+            <span className="line-clamp-2">{referenceNumber}</span>
+          </CopyableItem>
+        </dd>
       </dl>
     </div>
   );
@@ -589,44 +657,64 @@ function CustomerPreview({ row }: { row: Row }) {
       <div className="p-4">
         <div className="flex items-center gap-3">
           <Mark />
-          <p className="text-base font-semibold">{row.customer}</p>
+          <CopyableItem value={row.customer}>
+            <p className="text-base font-semibold">{row.customer}</p>
+          </CopyableItem>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded border bg-chip px-2.5 py-1 text-sm text-muted-foreground">
-            {row.initials}
-          </span>
-          <span className="rounded border bg-chip px-2.5 py-1 text-sm text-muted-foreground">
-            Management
-          </span>
+          <CopyableItem value={row.initials}>
+            <span className="rounded border bg-chip px-2.5 py-1 text-sm text-muted-foreground">
+              {row.initials}
+            </span>
+          </CopyableItem>
+          <CopyableItem value="Management">
+            <span className="rounded border bg-chip px-2.5 py-1 text-sm text-muted-foreground">
+              Management
+            </span>
+          </CopyableItem>
         </div>
       </div>
       <div className="space-y-3 border-t px-4 py-4 text-sm">
         <div className="flex items-center gap-3">
           <span className="w-6 text-[10px] font-semibold text-muted-foreground">ABN</span>
-          <span>12 345 678</span>
+          <CopyableItem value="12 345 678">
+            <span>12 345 678</span>
+          </CopyableItem>
         </div>
         <div className="flex items-center gap-3">
           <Phone className="h-4 w-4 text-muted-foreground" />
-          <span>0412 345 678</span>
+          <CopyableItem value="0412 345 678">
+            <span>0412 345 678</span>
+          </CopyableItem>
         </div>
         <div className="flex items-center gap-3">
           <Mail className="h-4 w-4 text-muted-foreground" />
-          <span>{row.initials.toLowerCase()}@example.com</span>
+          <CopyableItem value={`${row.initials.toLowerCase()}@example.com`}>
+            <span>{row.initials.toLowerCase()}@example.com</span>
+          </CopyableItem>
         </div>
         <div className="flex items-start gap-3">
           <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="line-clamp-2">{location}</span>
+          <CopyableItem value={location}>
+            <span className="line-clamp-2">{location}</span>
+          </CopyableItem>
         </div>
       </div>
       <dl className="grid grid-cols-[1fr_auto] gap-y-3 border-t px-4 py-4 text-sm">
         <dt className="text-muted-foreground">No. of Projects</dt>
-        <dd>{Number(row.id) + 3}</dd>
+        <dd>
+          <CopyableItem value={String(Number(row.id) + 3)}>{Number(row.id) + 3}</CopyableItem>
+        </dd>
         <dt className="text-muted-foreground">Admins Assigned</dt>
-        <dd>{Number(row.id) % 3}</dd>
+        <dd>
+          <CopyableItem value={String(Number(row.id) % 3)}>{Number(row.id) % 3}</CopyableItem>
+        </dd>
       </dl>
       <div className="flex items-center gap-3 border-t px-4 py-3 text-sm">
         <RefreshCw className="h-4 w-4 text-tag-green" />
-        <span>ALD Expert Demo</span>
+        <CopyableItem value="ALD Expert Demo">
+          <span>ALD Expert Demo</span>
+        </CopyableItem>
       </div>
     </div>
   );

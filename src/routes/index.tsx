@@ -218,7 +218,7 @@ function Index() {
               data-walkthrough-target="row-toggle"
               aria-pressed={expanded}
               onClick={() => setExpanded((e) => !e)}
-              className={`ml-3 flex h-9 w-9 items-center justify-center rounded border transition-colors hover:bg-secondary ${expanded ? "bg-accent text-primary" : ""}`}
+              className={`ml-0 flex h-9 w-9 items-center justify-center rounded border transition-colors hover:bg-secondary ${expanded ? "bg-accent text-primary" : ""}`}
             >
               {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
