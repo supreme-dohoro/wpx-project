@@ -1,14 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Search, Plus, ChevronDown, ChevronLeft, ChevronRight, Maximize2, Minimize2, Keyboard } from "lucide-react";
+import {
+  Search,
+  Plus,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Minimize2,
+  Keyboard,
+} from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
-import { ProjectTable, type ProjectView } from "@/components/ProjectTable";
+import {
+  ColumnSettings,
+  ProjectTable,
+  type ColumnPreferences,
+  type ProjectView,
+} from "@/components/ProjectTable";
 
 const walkthroughStorageKey = "project-table-walkthrough-seen";
 
-function TableWalkthrough({ step, onNext, onDismiss }: { step: number; onNext: () => void; onDismiss: () => void }) {
-  const [position, setPosition] = useState<{ left: number; top: number; width: number } | null>(null);
-  const target = step === 0 ? '[data-walkthrough-target="row-toggle"]' : '[data-walkthrough-target="column-resize"]';
+function TableWalkthrough({
+  step,
+  onNext,
+  onDismiss,
+}: {
+  step: number;
+  onNext: () => void;
+  onDismiss: () => void;
+}) {
+  const [position, setPosition] = useState<{ left: number; top: number; width: number } | null>(
+    null,
+  );
+  const target =
+    step === 0
+      ? '[data-walkthrough-target="row-toggle"]'
+      : '[data-walkthrough-target="column-resize"]';
 
   useEffect(() => {
     const updatePosition = () => {
@@ -18,7 +45,10 @@ function TableWalkthrough({ step, onNext, onDismiss }: { step: number; onNext: (
       element.dataset.guideActive = "true";
       const rect = element.getBoundingClientRect();
       const width = Math.min(320, window.innerWidth - 24);
-      const left = Math.min(Math.max(12, rect.left + rect.width / 2 - width / 2), Math.max(12, window.innerWidth - width - 12));
+      const left = Math.min(
+        Math.max(12, rect.left + rect.width / 2 - width / 2),
+        Math.max(12, window.innerWidth - width - 12),
+      );
       const below = rect.bottom + 12;
       const top = below + 170 <= window.innerHeight ? below : Math.max(12, rect.top - 182);
       setPosition({ left, top, width });
@@ -67,7 +97,11 @@ function TableWalkthrough({ step, onNext, onDismiss }: { step: number; onNext: (
           : "Drag the divider at the edge of a column heading to adjust its width."}
       </p>
       <div className="mt-4 flex items-center justify-between">
-        <button type="button" onClick={onDismiss} className="text-sm text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
           Skip
         </button>
         <button
@@ -86,9 +120,15 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Projects — ALD Expert" },
-      { name: "description", content: "Ongoing, completed and archived projects with budgets, recycling and tags." },
+      {
+        name: "description",
+        content: "Ongoing, completed and archived projects with budgets, recycling and tags.",
+      },
       { property: "og:title", content: "Projects — ALD Expert" },
-      { property: "og:description", content: "Ongoing, completed and archived projects with budgets, recycling and tags." },
+      {
+        property: "og:description",
+        content: "Ongoing, completed and archived projects with budgets, recycling and tags.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -107,6 +147,12 @@ function Select({ label }: { label: string }) {
 function Index() {
   const [tab, setTab] = useState<ProjectView>("Ongoing");
   const [expanded, setExpanded] = useState(false);
+  const [columnPreferences, setColumnPreferences] = useState<ColumnPreferences>({
+    order: [],
+    hidden: [],
+    pinned: [],
+    showDividers: false,
+  });
   const [page, setPage] = useState(1);
   const [walkthroughStep, setWalkthroughStep] = useState<number | null>(null);
 
@@ -137,7 +183,9 @@ function Index() {
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-semibold">Project</h1>
           <div className="flex items-center gap-6">
-            <button className="flex items-center gap-2 text-[14px] hover:text-primary"><Search className="h-4 w-4" /> Search</button>
+            <button className="flex items-center gap-2 text-[14px] hover:text-primary">
+              <Search className="h-4 w-4" /> Search
+            </button>
             <button className="flex h-10 items-center gap-2 rounded bg-primary px-5 text-[15px] text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               <Plus className="h-4 w-4" /> Add New Project
             </button>
@@ -148,12 +196,23 @@ function Index() {
         <div className="mt-4 mb-7 flex flex-wrap items-center justify-between gap-3">
           <div className="flex rounded-md border p-[3px]">
             {(["Ongoing", "Completed", "Archived"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`rounded px-[17px] py-2 text-[15px] transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{t}</button>
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`rounded px-[17px] py-2 text-[15px] transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {t}
+              </button>
             ))}
           </div>
           <div className="flex items-center gap-3">
             <Select label="Select Customer" />
             <Select label="Project Tags" />
+            <ColumnSettings
+              view={tab}
+              preferences={columnPreferences}
+              onPreferencesChange={setColumnPreferences}
+            />
             <button
               aria-label={expanded ? "Collapse rows" : "Expand rows"}
               data-walkthrough-target="row-toggle"
@@ -166,7 +225,7 @@ function Index() {
           </div>
         </div>
 
-        <ProjectTable expanded={expanded} view={tab} />
+        <ProjectTable expanded={expanded} view={tab} preferences={columnPreferences} />
         {walkthroughStep !== null && (
           <TableWalkthrough
             step={walkthroughStep}
@@ -180,15 +239,33 @@ function Index() {
           <div className="flex items-center gap-16">
             <div className="flex items-center gap-3">
               Rows per Page
-              <button className="flex h-9 items-center gap-5 rounded border px-3 text-foreground">10 <ChevronDown className="h-4 w-4" /></button>
+              <button className="flex h-9 items-center gap-5 rounded border px-3 text-foreground">
+                10 <ChevronDown className="h-4 w-4" />
+              </button>
             </div>
             <div className="flex items-center gap-3 text-foreground">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} className="flex h-9 items-center gap-2 rounded border px-3 hover:bg-secondary"><ChevronLeft className="h-4 w-4" /> Prev</button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="flex h-9 items-center gap-2 rounded border px-3 hover:bg-secondary"
+              >
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </button>
               {[1, 2, 3].map((n) => (
-                <button key={n} onClick={() => setPage(n)} className={`h-9 w-9 rounded ${page === n ? "border" : "hover:bg-secondary"}`}>{n}</button>
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`h-9 w-9 rounded ${page === n ? "border" : "hover:bg-secondary"}`}
+                >
+                  {n}
+                </button>
               ))}
               <span className="px-1">...</span>
-              <button onClick={() => setPage((p) => Math.min(3, p + 1))} className="flex h-9 items-center gap-2 rounded border px-3 hover:bg-secondary">Next <ChevronRight className="h-4 w-4" /></button>
+              <button
+                onClick={() => setPage((p) => Math.min(3, p + 1))}
+                className="flex h-9 items-center gap-2 rounded border px-3 hover:bg-secondary"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>
