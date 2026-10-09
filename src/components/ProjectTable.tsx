@@ -386,10 +386,14 @@ export function ColumnSettings({
   view,
   preferences,
   onPreferencesChange,
+  open,
+  onOpenChange,
 }: {
   view: ProjectView;
   preferences: ColumnPreferences;
   onPreferencesChange: (preferences: ColumnPreferences) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const availableColumns = initialCols.filter(
     (col) => col.key !== "select" && col.key !== "actions",
@@ -418,12 +422,13 @@ export function ColumnSettings({
   };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
           aria-label="Configure columns"
           title="Configure columns"
+          data-walkthrough-target="column-settings"
           className="flex h-10 w-10 items-center justify-center rounded border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
         >
           <Columns3 className="h-4 w-4" />

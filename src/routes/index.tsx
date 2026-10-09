@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Search,
   Plus,
@@ -29,44 +29,92 @@ function TableWalkthrough({
   onNext: () => void;
   onDismiss: () => void;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
   const [position, setPosition] = useState<{ left: number; top: number; width: number } | null>(
     null,
   );
   const target =
     step === 0
       ? '[data-walkthrough-target="row-toggle"]'
-      : '[data-walkthrough-target="column-resize"]';
+      : step === 1
+        ? '[data-walkthrough-target="column-settings"]'
+        : '[data-walkthrough-target="column-resize"]';
 
   useEffect(() => {
+    setPosition(null);
     const updatePosition = () => {
       const element = document.querySelector<HTMLElement>(target);
-      if (!element) return;
+      if (!element) return false;
 
       element.dataset.guideActive = "true";
       const rect = element.getBoundingClientRect();
       const width = Math.min(320, window.innerWidth - 24);
+      const height = dialogRef.current?.getBoundingClientRect().height ?? 174;
       const left = Math.min(
         Math.max(12, rect.left + rect.width / 2 - width / 2),
         Math.max(12, window.innerWidth - width - 12),
       );
       const below = rect.bottom + 12;
-      const top = below + 170 <= window.innerHeight ? below : Math.max(12, rect.top - 182);
-      setPosition({ left, top, width });
+      const preferredTop =
+        below + height <= window.innerHeight - 12 ? below : rect.top - height - 12;
+      const top = Math.max(12, Math.min(preferredTop, window.innerHeight - height - 12));
+      setPosition((current) =>
+        current?.left === left && current.top === top && current.width === width
+          ? current
+          : { left, top, width },
+      );
+      return true;
     };
 
+    const observer = new MutationObserver(() => {
+      updatePosition();
+    });
     updatePosition();
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "data-side", "data-align"],
+    });
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(updatePosition);
+    });
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     return () => {
       document.querySelector<HTMLElement>(target)?.removeAttribute("data-guide-active");
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
   }, [target]);
 
+  useLayoutEffect(() => {
+    if (!position) return;
+    const dialog = dialogRef.current;
+    const element = document.querySelector<HTMLElement>(target);
+    if (!dialog || !element) return;
+
+    const rect = element.getBoundingClientRect();
+    const height = dialog.getBoundingClientRect().height;
+    const below = rect.bottom + 12;
+    const preferredTop = below + height <= window.innerHeight - 12 ? below : rect.top - height - 12;
+    const top = Math.max(12, Math.min(preferredTop, window.innerHeight - height - 12));
+    setPosition((current) => (current && current.top !== top ? { ...current, top } : current));
+  }, [position, target]);
+
   if (!position) return null;
 
-  const isLastStep = step === 1;
+  const isLastStep = step === 2;
+  const title =
+    step === 0 ? "Expand or collapse rows" : step === 1 ? "Configure columns" : "Resize columns";
+  const description =
+    step === 0
+      ? "Use this control to show more or less detail in every project row."
+      : step === 1
+        ? "Choose which columns are visible, pin columns, and toggle vertical dividers."
+        : "Drag the divider at the edge of a column heading to adjust its width.";
   return (
     <section
       aria-labelledby="table-walkthrough-title"
@@ -74,12 +122,13 @@ function TableWalkthrough({
       className="fixed z-[60] rounded-lg border bg-background p-4 shadow-lg"
       style={position}
       role="dialog"
+      ref={dialogRef}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium text-primary">Quick guide · {step + 1} of 2</p>
+          <p className="text-xs font-medium text-primary">Quick guide · {step + 1} of 3</p>
           <h2 id="table-walkthrough-title" className="mt-1 font-semibold">
-            {step === 0 ? "Expand or collapse rows" : "Resize columns"}
+            {title}
           </h2>
         </div>
         <button
@@ -92,9 +141,7 @@ function TableWalkthrough({
         </button>
       </div>
       <p id="table-walkthrough-description" className="mt-2 text-sm text-muted-foreground">
-        {step === 0
-          ? "Use this control to show more or less detail in every project row."
-          : "Drag the divider at the edge of a column heading to adjust its width."}
+        {description}
       </p>
       <div className="mt-4 flex items-center justify-between">
         <button
@@ -153,6 +200,7 @@ function Index() {
     pinned: [],
     showDividers: false,
   });
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [walkthroughStep, setWalkthroughStep] = useState<number | null>(null);
 
@@ -212,6 +260,8 @@ function Index() {
               view={tab}
               preferences={columnPreferences}
               onPreferencesChange={setColumnPreferences}
+              open={columnSettingsOpen}
+              onOpenChange={setColumnSettingsOpen}
             />
             <button
               aria-label={expanded ? "Collapse rows" : "Expand rows"}
@@ -229,7 +279,15 @@ function Index() {
         {walkthroughStep !== null && (
           <TableWalkthrough
             step={walkthroughStep}
-            onNext={walkthroughStep === 0 ? () => setWalkthroughStep(1) : dismissWalkthrough}
+            onNext={() => {
+              if (walkthroughStep === 0) {
+                setWalkthroughStep(1);
+              } else if (walkthroughStep === 1) {
+                setWalkthroughStep(2);
+              } else {
+                dismissWalkthrough();
+              }
+            }}
             onDismiss={dismissWalkthrough}
           />
         )}
