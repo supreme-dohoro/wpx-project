@@ -229,13 +229,13 @@ function Index() {
       <Sidebar />
       <main className="min-w-0 flex-1 px-7 pt-6 pb-10">
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-semibold">Project</h1>
+          <h1 className="text-[28px] font-semibold">Module Title</h1>
           <div className="flex items-center gap-6">
             <button className="flex items-center gap-2 text-[14px] hover:text-primary">
               <Search className="h-4 w-4" /> Search
             </button>
             <button className="flex h-10 items-center gap-2 rounded bg-primary px-5 text-[15px] text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              <Plus className="h-4 w-4" /> Add New Project
+              <Plus className="h-4 w-4" /> Add New
             </button>
             <Keyboard className="h-6 w-6" strokeWidth={1.6} />
           </div>
